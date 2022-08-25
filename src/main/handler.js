@@ -1,6 +1,8 @@
 import XLSX from 'xlsx'
 import request from 'request-promise'
-import { HttpProxyAgent } from 'http-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
+import Socks5ProxyAgent from 'socks5-https-client/lib/Agent'
+import utf8 from 'utf8'
 
 export default async function handle(path = "", proxies = [{}]) {
     const file = XLSX.readFile(path)
@@ -19,18 +21,25 @@ export default async function handle(path = "", proxies = [{}]) {
             let options = {
                 method: "GET",
                 uri: `https://zalo.me/${phone}`,
+                encoding: null,
                 headers: {
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
+                    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
                 },
-                // agent: new HttpProxyAgent("http://svbk.duckdns.org:4201")
+                agent: new HttpsProxyAgent("http://svbk.duckdns.org:4207")
             }
             try {
                 let resp = await request(options)
-                console.log("ok", resp)
                 if (!resp.includes("line-form g-recaptcha")) {
+                    console.log(resp)
+                    resp = utf8.encode(resp)
+                    console.log(resp)
                     let str = resp.match(/<b>(.*?)<\/b>/g)
                     data = data.slice(1)
                     result = [...result, { phone: phone, name: "", status: "" }];
+                } else {
+                    console.log(resp)
+                    var decoder = new TextDecoder('utf-5')
+                    console.log(decoder.decode(resp))
                 }
                 data = []
             } catch (error) {
