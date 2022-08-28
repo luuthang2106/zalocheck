@@ -14,7 +14,7 @@ export default async function handle({ data = [], proxy = "" }) {
   );
   await page.waitForSelector('input[id="contact-search-input"]');
   for (let [index, item] of data.entries()) {
-    if (item.status == "pending") {
+    if (item.status != "pending") {
         continue
     }
     await page.click('input[id="contact-search-input"]');

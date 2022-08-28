@@ -61,14 +61,15 @@ export default function App() {
         <button style={{background: "green", color: "yellow"}} onClick={exportData}>export result</button>
       </div>
       <div style={{
-        padding: 10
+        marginTop: 10
       }}>
         <label htmlFor="inputProxy">Nhập proxy: </label>
         <input style={{
-          fontSize: 18
+          fontSize: 18,
+          width: 300
         }} type="text" id="inputProxy" onChange={e => setProxy(e.target.value)} />
       </div>
-      <div>
+      <div style={{marginTop: 10}}>
         { `Scanned: ${data.filter(i => i.status != "pending").length}/${data.length}`}
       </div>
       <div className="rsCon">
