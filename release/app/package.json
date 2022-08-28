@@ -15,7 +15,13 @@
     "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts"
   },
   "dependencies": {
+    "cheerio": "^1.0.0-rc.12",
+    "electron-fetch": "^1.7.4",
     "http-proxy-agent": "^5.0.0",
+    "node-fetch": "^3.2.10",
+    "puppeteer": "^16.2.0",
+    "puppeteer-page-proxy": "^1.2.8",
+    "puppeteer-proxy": "^2.1.2",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
     "socks5-https-client": "^1.2.1"

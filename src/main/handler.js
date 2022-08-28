@@ -1,58 +1,92 @@
-import XLSX from 'xlsx'
-import request from 'request-promise'
-import { HttpsProxyAgent } from 'https-proxy-agent'
-import Socks5ProxyAgent from 'socks5-https-client/lib/Agent'
-import utf8 from 'utf8'
+import puppeteer from "puppeteer";
 
-export default async function handle(path = "", proxies = [{}]) {
-    const file = XLSX.readFile(path)
-    const sheet1 = file.Sheets[file.SheetNames[0]]
-    let data = XLSX.utils.sheet_to_json(sheet1)
-    let result = []
-    data = data.map(i => i.phone)
-    proxies = proxies.map(i => ({...i, readyTime: new Date() }))
-    let index = 0
-    while (true) {
-        if (data.length == 0) {
-            break
-        }
-        if (Date.now() > proxies[index].readyTime.getTime()) {
-            let phone = data[0]
-            let options = {
-                method: "GET",
-                uri: `https://zalo.me/${phone}`,
-                encoding: null,
-                headers: {
-                    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'
-                },
-                agent: new HttpsProxyAgent("http://svbk.duckdns.org:4207")
-            }
-            try {
-                let resp = await request(options)
-                if (!resp.includes("line-form g-recaptcha")) {
-                    console.log(resp)
-                    resp = utf8.encode(resp)
-                    console.log(resp)
-                    let str = resp.match(/<b>(.*?)<\/b>/g)
-                    data = data.slice(1)
-                    result = [...result, { phone: phone, name: "", status: "" }];
-                } else {
-                    console.log(resp)
-                    var decoder = new TextDecoder('utf-5')
-                    console.log(decoder.decode(resp))
-                }
-                data = []
-            } catch (error) {
-                console.log("err", error)
-                data = []
-            }
-        }
-        if (index == proxies.length - 1) {
-            index = 0
-        } else {
-            index++
-        }
+export default async function handle({ data = [], proxy = "" }) {
+  let rs = [];
+  // socks5://svbk.duckdns.org:5001
+  const browser = await puppeteer.launch({
+    headless: false,
+    args: [`--proxy-server=${proxy}`],
+  });
+  const page = await browser.newPage();
+
+  await page.goto(
+    "https://id.zalo.me/account?continue=https%3A%2F%2Fchat.zalo.me%2F"
+  );
+  await page.waitForSelector('input[id="contact-search-input"]');
+  for (let [index, item] of data.entries()) {
+    if (item.status == "pending") {
+        continue
     }
+    await page.click('input[id="contact-search-input"]');
+    await page.type('input[id="contact-search-input"]', item?.phone);
+    await page.waitForTimeout(500);
+    let rs = await page.evaluate(
+      async ({ phone }) => {
+        let name =
+          document?.querySelector?.(
+            "[id*='friend'] div.conv-item-title__name span"
+          )?.textContent || "";
+        let ava =
+          document
+            ?.querySelector?.(
+              "[id*='friend'] > div.flx.flx-center.conv-item__avatar > div > img"
+            )
+            ?.getAttribute("src") || "";
+        document.getElementById("contact-search-input").value = "";
+        if (name == "") {
+          let isRateLimit = document
+            ?.querySelector?.(
+              "#global_search_list > div > div:nth-child(2) > div > span"
+            )
+            ?.textContent?.includes("quá số lần cho phép");
+          if (isRateLimit) {
+            return {
+              name: name,
+              ava: ava,
+              status: "pending",
+              isRateLimit: true,
+              phone: phone,
+            };
+          }
+        }
 
-    return "ccc"
+        // Tài khoản bị khoá
+        if (name == "Tài khoản bị khoá") {
+          return {
+            name: name,
+            ava: ava,
+            status: "block",
+            phone: phone,
+          };
+        }
+        // #global_search_list > div > div:nth-child(2) > div > span
+        let unactive = document
+          ?.querySelector?.(
+            "#global_search_list > div > div:nth-child(2) > div > span"
+          )
+          ?.textContent?.includes("Số điện thoại chưa đăng ký");
+        if (unactive) {
+          return {
+            name: name,
+            ava: ava,
+            status: "unknown",
+            phone: phone,
+          };
+        }
+        return {
+          name: name,
+          ava: ava,
+          status: "live",
+          phone: phone,
+        };
+      },
+      { phone: item.phone }
+    );
+    if (rs.isRateLimit) {
+      break;
+    }
+    data[index] = rs;
+  }
+  await browser.close();
+  return data;
 }

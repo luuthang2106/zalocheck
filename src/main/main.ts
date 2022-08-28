@@ -27,8 +27,8 @@ class AppUpdater {
 let mainWindow: BrowserWindow | null = null;
 
 ipcMain.on('ipc', async (event, body) => {
-  const { path, proxies } = body
-  event.reply('ipc', await handle(path, proxies));
+  const { data, proxy } = body
+  event.reply('ipc', await handle({data, proxy}));
 });
 
 if (process.env.NODE_ENV === 'production') {
